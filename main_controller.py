@@ -241,7 +241,7 @@ class Controlller(QMainWindow,Ui_MainWindow):
 
     def export_file(self):
 
-        filename = QFileDialog.getSaveFileName(self, 'Save File', '', "Excel (*.xls *.xlsx)")
+        filename = QFileDialog.getSaveFileName(self, 'Save File', '', "Excel (*.xls)")
         wbk = xlwt.Workbook()
         sheet = wbk.add_sheet("Result", cell_overwrite_ok=True)     
         self.add_data(sheet)

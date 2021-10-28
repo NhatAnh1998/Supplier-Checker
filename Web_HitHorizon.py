@@ -1,5 +1,5 @@
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -70,6 +70,8 @@ class Web_HitHorizon(QtCore.QThread):
         # save the workbook
         writer.save()
 
+
+    # get folder path which has been converted into binary file. (sys._MEIPASS)
     @staticmethod
     def resource_path(relative_path):
         try:
@@ -89,7 +91,7 @@ class Web_HitHorizon(QtCore.QThread):
 
     # df_company = pd.read_excel(r"C:\Users\ADMIN\Documents\Aufinia\Data_Test.xlsx",sheet_name='Euro', converters={'LFA1_LIFNR':str,'LFA1_STCD1':str},usecols={'LFA1_LIFNR','LFA1_NAME1','COUNTRY','LFA1_STCD1','LFA1_LAND1'})
 
-
+    
     def crawling_execution(self,df_company):
 
         df_company_output = df_company[['Supplier_number','Supplier_name','Country','Tax_code','Country_code']]
@@ -97,96 +99,103 @@ class Web_HitHorizon(QtCore.QThread):
         driver = self.create_driver()
         driver.get('https://www.hithorizons.com/search?Name=')
 
-        for idx in range(len(df_company_output)):
+        try:
+            for idx in range(len(df_company_output)):
 
-            time.sleep(3)
-            # get company_name, country_name from dataframe
-            company_name = df_company_output.loc[idx,'Supplier_name']
-            country_name = df_company_output.loc[idx,'Country']
-    
-            
-    
-            # send company_name keys
-            driver.implicitly_wait(15)
-            company_name_input = driver.find_element(By.ID, "Name")
-            company_name_input.clear()
-            company_name_input.send_keys(company_name)
-    
-    
-            # send country_name keys
-            driver.implicitly_wait(15)
-            country_name_input = driver.find_element(By.ID, "Address")
-            country_name_input.clear()
-            country_name_input.send_keys(country_name)
-    
-    
-            #click search button
-            search_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='main-content']/div[1]/div/form/div[1]/div[3]/button")))
-            driver.execute_script("arguments[0].click();", search_button)
-    
-            time.sleep(3)
-            
-    
-    
-    
-            try:
-            
-                driver.find_element(By.XPATH, "//*[@id='main-content']/div[2]/div[1]/div/div[1]/div[1]/div[1]/h3/a")
-            
-            except NoSuchElementException:
-            
-                df_company_output.loc[idx,'Exception'] = "No information found"
+                time.sleep(3)
+                # get company_name, country_name from dataframe
+                company_name = df_company_output.loc[idx,'Supplier_name']
+                country_name = df_company_output.loc[idx,'Country']
+        
                 
-                # emit signal to main_GUI
-                QApplication.processEvents()
-                self.updateProgress.emit(((idx+1)  * 100)/len(df_company_output))
-                time.sleep(0.1)
+        
+                # send company_name keys
+                driver.implicitly_wait(15)
+                company_name_input = driver.find_element(By.ID, "Name")
+                company_name_input.clear()
+                company_name_input.send_keys(company_name)
+        
+        
+                # send country_name keys
+                driver.implicitly_wait(15)
+                country_name_input = driver.find_element(By.ID, "Address")
+                country_name_input.clear()
+                country_name_input.send_keys(country_name)
+        
+        
+                #click search button
+                search_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='main-content']/div[1]/div/form/div[1]/div[3]/button")))
+                driver.execute_script("arguments[0].click();", search_button)
+        
+                time.sleep(3)
                 
-                print(str(idx) +": "+str(company_name)+ "  not found") 
-    
-            else:
-            
-                print(str(idx) +": "+str(company_name)) 
-    
-                driver.refresh()
-                #click first href link
-                first_result = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='main-content']/div[2]/div[1]/div/div[1]/div[1]/div[1]/h3/a")))
-                first_result.click()
-    
-                driver.implicitly_wait(10)
-                # click copy clipboard
-                clipboard_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='chart-content']/div/div/div[1]/div[1]/div[2]/div/div[1]/div")))
-                clipboard_button.click()
-                clipboard_text= pyperclip.paste()
-    
-    
-                text_line = clipboard_text.splitlines()
-    
-                df_company_output.loc[idx,'Name found in HitHorizons'] = text_line[0].strip()
-                df_company_output.loc[idx,'Address found in HitHorizons'] = text_line[1].strip()
-    
-                if(len(text_line) == 3):
-                     df_company_output.loc[idx,'Tax code found in HitHorizons'] = text_line[2].strip()
+                try:
+                
+                    driver.find_element(By.XPATH, "//*[@id='main-content']/div[2]/div[1]/div/div[1]/div[1]/div[1]/h3/a")
+                
+                except NoSuchElementException:
+                
+                    df_company_output.loc[idx,'Exception'] = "No information found"
+                    
+                    # emit signal to main_GUI
+                    QApplication.processEvents()
+                    self.updateProgress.emit(((idx+1)  * 100)/len(df_company_output))
+                    time.sleep(0.1)
+                    
+                    print(str(idx) +": "+str(company_name)+ "  not found") 
+        
                 else:
-                    df_company_output.loc[idx,'Tax code found in HitHorizons'] = 'None'
-    
-                df_company_output.loc[idx,'Industry found in HitHorizons'] = driver.find_element(By.XPATH,  "//*[@id='chart-content']/div/div/div[1]/div[1]/div[2]/div/div[2]/ul/li[1]/span").text.strip()
-                df_company_output.loc[idx,'URL of HitHorizons'] = driver.current_url
-    
-                # emit signal to main_GUI
-                QApplication.processEvents()
-                self.updateProgress.emit(((idx+1)  * 100)/len(df_company_output))
-                time.sleep(0.1)
                 
-                # Get back to previous page
-                driver.back()
+                    print(str(idx) +": "+str(company_name)) 
+        
+                    driver.refresh()
+                    #click first href link
+                    first_result = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='main-content']/div[2]/div[1]/div/div[1]/div[1]/div[1]/h3/a")))
+                    first_result.click()
+        
+                    driver.implicitly_wait(10)
+                    # click copy clipboard
+                    clipboard_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='chart-content']/div/div/div[1]/div[1]/div[2]/div/div[1]/div")))
+                    clipboard_button.click()
+                    clipboard_text= pyperclip.paste()
+        
+        
+                    text_line = clipboard_text.splitlines()
+        
+                    df_company_output.loc[idx,'Name found in HitHorizons'] = text_line[0].strip()
+                    df_company_output.loc[idx,'Address found in HitHorizons'] = text_line[1].strip()
+        
+                    if(len(text_line) == 3):
+                        df_company_output.loc[idx,'Tax code found in HitHorizons'] = text_line[2].strip()
+                    else:
+                        df_company_output.loc[idx,'Tax code found in HitHorizons'] = 'None'
+        
+                    df_company_output.loc[idx,'Industry found in HitHorizons'] = driver.find_element(By.XPATH,  "//*[@id='chart-content']/div/div/div[1]/div[1]/div[2]/div/div[2]/ul/li[1]/span").text.strip()
+                    df_company_output.loc[idx,'URL of HitHorizons'] = driver.current_url
+        
+                    # emit signal to main_GUI
+                    QApplication.processEvents()
+                    self.updateProgress.emit(((idx+1)  * 100)/len(df_company_output))
+                    time.sleep(0.1)
+                    
+                    # Get back to previous page
+                    driver.back()
+
+            driver.close()
+            df_company_output = df_company_output.fillna('None')
+            return df_company_output
+            
+
+        except WebDriverException:
+
+            df_company_output = df_company_output.fillna('None')
+            return df_company_output
+        
 
 
-        driver.close()
 
-        df_company_output = df_company_output.fillna('None')
 
-        return df_company_output
+    
    
 
 
